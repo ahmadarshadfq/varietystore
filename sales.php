@@ -4,27 +4,38 @@ requireLogin();
 
 $me = currentUser();
 
-// Sale POST handler (from popup)
+// Sale POST handler — custom price support
 $popupError = '';
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['product_id'], $_POST['quantity'])) {
     $selectedId = (int)$_POST['product_id'];
     $quantity   = (int)$_POST['quantity'];
+    $customPrice = isset($_POST['custom_price']) && $_POST['custom_price'] !== ''
+        ? (float)$_POST['custom_price'] : null;
+
     if ($selectedId <= 0 || $quantity <= 0) {
         $popupError = "Product aur quantity dono select karein.";
     } else {
         $stmt = $pdo->prepare("SELECT * FROM products WHERE id = ?");
         $stmt->execute([$selectedId]);
         $prod = $stmt->fetch(PDO::FETCH_ASSOC);
+
         if (!$prod) {
             $popupError = "Product nahi mila.";
         } elseif ($quantity > (int)$prod['quantity']) {
             $popupError = "Stock kam hai! Sirf {$prod['quantity']} available hain.";
         } else {
-            $total = $quantity * (float)$prod['price'];
+            $salePrice = $customPrice !== null ? $customPrice : (float)$prod['price'];
+            $costPrice = (float)$prod['cost_price'];
+            $total     = $quantity * $salePrice;
+            $profitLoss = ($salePrice - $costPrice) * $quantity;
+
             $pdo->beginTransaction();
             try {
-                $ins = $pdo->prepare("INSERT INTO sales (product_id, user_id, product_name, quantity, price_per_item, total) VALUES (?, ?, ?, ?, ?, ?)");
-                $ins->execute([$prod['id'], $me['id'], $prod['name'], $quantity, $prod['price'], $total]);
+                $ins = $pdo->prepare("INSERT INTO sales (product_id, user_id, product_name, quantity, price_per_item, cost_at_sale, total, profit_loss) VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
+                $ins->execute([
+                    $prod['id'], $me['id'], $prod['name'], $quantity,
+                    $salePrice, $costPrice, $total, $profitLoss
+                ]);
                 $upd = $pdo->prepare("UPDATE products SET quantity = quantity - ? WHERE id = ?");
                 $upd->execute([$quantity, $prod['id']]);
                 $pdo->commit();
@@ -68,14 +79,28 @@ $stmt = $pdo->prepare("
 $stmt->execute($params);
 $sales = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-$monthRevenue = 0;
-$monthItems   = 0;
+// Calculate totals — SEPARATED profit & loss (breakeven skipped)
+$monthRevenue    = 0;
+$monthItems      = 0;
+$totalProfit     = 0;
+$totalLoss       = 0;
+$profitSaleCount = 0;
+$lossSaleCount   = 0;
+
 foreach ($sales as $s) {
     $monthRevenue += (float)$s['total'];
     $monthItems   += (int)$s['quantity'];
+    $pl = (float)($s['profit_loss'] ?? 0);
+    if ($pl > 0) {
+        $totalProfit += $pl;
+        $profitSaleCount++;
+    } elseif ($pl < 0) {
+        $totalLoss += abs($pl);
+        $lossSaleCount++;
+    }
 }
 
-$productsForSale = $pdo->query("SELECT id, name, quantity, price FROM products WHERE quantity > 0 ORDER BY name ASC")->fetchAll(PDO::FETCH_ASSOC);
+$productsForSale = $pdo->query("SELECT id, name, quantity, price, cost_price FROM products WHERE quantity > 0 ORDER BY name ASC")->fetchAll(PDO::FETCH_ASSOC);
 $productsJson    = json_encode($productsForSale, JSON_HEX_APOS | JSON_HEX_QUOT);
 
 $success = $_GET['success'] ?? '';
@@ -159,17 +184,33 @@ $activePage = 'sales';
             </form>
         </div>
 
-        <div class="cards" style="grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));">
+        <div class="cards" style="grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));">
             <div class="card glass">
                 <div class="card-icon green"><i class="fa-solid fa-sack-dollar"></i></div>
                 <div>
-                    <h3>Revenue (<?= $filterType === 'month' ? 'This Month' : ($filterType === 'date' ? 'Selected Date' : 'All Time') ?>)</h3>
+                    <h3>Revenue</h3>
                     <p class="big">Rs <?= number_format($monthRevenue, 0) ?></p>
                 </div>
             </div>
             <div class="card glass">
                 <div class="card-icon purple"><i class="fa-solid fa-cubes"></i></div>
                 <div><h3>Items Sold</h3><p class="big"><?= $monthItems ?></p></div>
+            </div>
+            <div class="card glass">
+                <div class="card-icon green"><i class="fa-solid fa-arrow-trend-up"></i></div>
+                <div>
+                    <h3>Total Profit</h3>
+                    <p class="big" style="color:var(--success);">Rs <?= number_format($totalProfit, 0) ?></p>
+                    <span class="muted" style="font-size:11px;"><?= $profitSaleCount ?> profit sales</span>
+                </div>
+            </div>
+            <div class="card glass">
+                <div class="card-icon red"><i class="fa-solid fa-arrow-trend-down"></i></div>
+                <div>
+                    <h3>Total Loss</h3>
+                    <p class="big" style="color:var(--danger);">Rs <?= number_format($totalLoss, 0) ?></p>
+                    <span class="muted" style="font-size:11px;"><?= $lossSaleCount ?> loss sales</span>
+                </div>
             </div>
         </div>
 
@@ -187,29 +228,31 @@ $activePage = 'sales';
                         <th>#</th>
                         <th>Product</th>
                         <th>Sold By</th>
-                        <th class="text-right">Quantity</th>
-                        <th class="text-right">Price/Item</th>
+                        <th class="text-right">Qty</th>
+                        <th class="text-right">Cost</th>
+                        <th class="text-right">Sale Price</th>
                         <th class="text-right">Total</th>
+                        <th class="text-right">P/L</th>
                         <th>Date &amp; Time</th>
                     </tr>
                 </thead>
                 <tbody>
                     <?php foreach ($sales as $i => $s):
-                        // Determine row background — solid tinted color
                         $userColor = $s['user_color'] ?? null;
                         if (!isValidHexColor($userColor)) {
-                            // Unknown / no user → neutral gray
-                            $rowBg = '#f1f5f9';
-                            $dotColor = '#94a3b8';
-                            $leftBar = '#cbd5e1';
+                            $rowBg = '#1a212b';
+                            $dotColor = '#8b949e';
+                            $leftBar = '#30363d';
                         } else {
-                            // Light tinted version for readability
-                            $rowBg = lightenColor($userColor, 0.82); // more saturated than 0.88
+                            $rowBg = lightenColor($userColor, 0.35);
                             $dotColor = $userColor;
                             $leftBar = $userColor;
                         }
+                        $pl = (float)($s['profit_loss'] ?? 0);
+                        $cost = (float)($s['cost_at_sale'] ?? 0);
+                        $saleP = (float)$s['price_per_item'];
                     ?>
-                    <tr style="background:<?= $rowBg ?>; box-shadow: inset 4px 0 0 <?= $leftBar ?>;">
+                    <tr style="background:<?= $rowBg ?>; box-shadow: inset 4px 0 0 <?= $leftBar ?>; color: var(--text);">
                         <td class="muted"><?= $i + 1 ?></td>
                         <td><strong><?= htmlspecialchars($s['product_name']) ?></strong></td>
                         <td>
@@ -219,8 +262,27 @@ $activePage = 'sales';
                             </span>
                         </td>
                         <td class="text-right"><?= $s['quantity'] ?></td>
-                        <td class="text-right">Rs <?= number_format($s['price_per_item'], 2) ?></td>
+                        <td class="text-right">Rs <?= number_format($cost, 2) ?></td>
+                        <td class="text-right">Rs <?= number_format($saleP, 2) ?></td>
                         <td class="text-right"><strong>Rs <?= number_format($s['total'], 2) ?></strong></td>
+                        <td class="text-right">
+                            <?php if ($pl > 0): ?>
+                                <span class="pl-badge pl-profit">
+                                    <i class="fa-solid fa-arrow-trend-up"></i>
+                                    Profit Rs <?= number_format($pl, 2) ?>
+                                </span>
+                            <?php elseif ($pl < 0): ?>
+                                <span class="pl-badge pl-loss">
+                                    <i class="fa-solid fa-arrow-trend-down"></i>
+                                    Loss Rs <?= number_format(abs($pl), 2) ?>
+                                </span>
+                            <?php else: ?>
+                                <span class="pl-badge pl-zero">
+                                    <i class="fa-solid fa-minus"></i>
+                                    No Profit/Loss
+                                </span>
+                            <?php endif; ?>
+                        </td>
                         <td class="muted"><?= date('d M Y, h:i A', strtotime($s['sold_at'])) ?></td>
                     </tr>
                     <?php endforeach; ?>

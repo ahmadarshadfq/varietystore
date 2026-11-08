@@ -3,12 +3,11 @@ require 'config.php';
 requireLogin();
 
 $me = currentUser();
-$isAdmin = $me['role'] === 'admin';
+$isAdmin = $me['role'] === 'admin' && !isSwitched();
 
 $error = '';
 $success = $_GET['success'] ?? '';
 
-// Only admin can add
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['name'], $_POST['quantity'], $_POST['price']) && !isset($_POST['edit_id'])) {
     if (!$isAdmin) { header("Location: admin.php?error=no_permission"); exit; }
     $name     = trim($_POST['name']);
@@ -18,13 +17,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['name'], $_POST['quant
     elseif (!is_numeric($quantity) || (int)$quantity < 0) $error = "Quantity valid number honi chahiye.";
     elseif (!is_numeric($price) || (float)$price < 0) $error = "Price valid number honi chahiye.";
     else {
-        $stmt = $pdo->prepare("INSERT INTO products (name, quantity, price) VALUES (?, ?, ?)");
-        $stmt->execute([$name, (int)$quantity, (float)$price]);
+        $stmt = $pdo->prepare("INSERT INTO products (name, quantity, price, cost_price) VALUES (?, ?, ?, ?)");
+        $stmt->execute([$name, (int)$quantity, (float)$price, (float)$price]);
+        $newId = (int)$pdo->lastInsertId();
+        $pdo->prepare("INSERT INTO purchases (product_id, quantity, cost_price, selling_price, profit_per_item, user_id) VALUES (?, ?, ?, ?, ?, ?)")
+            ->execute([$newId, (int)$quantity, (float)$price, (float)$price, 0, $me['id'] ?? null]);
         header("Location: products.php?success=added"); exit;
     }
 }
 
-// Only admin can edit
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['edit_id'])) {
     if (!$isAdmin) { header("Location: admin.php?error=no_permission"); exit; }
     $id        = (int)$_POST['edit_id'];
@@ -51,18 +52,65 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['edit_id'])) {
         else {
             $upd = $pdo->prepare("UPDATE products SET name=?, quantity=?, price=? WHERE id=?");
             $upd->execute([$name, $newQty, (float)$price, $id]);
+
+            if ($addQty > 0) {
+                $profit = (float)$price - (float)$product['cost_price'];
+                $pdo->prepare("INSERT INTO purchases (product_id, quantity, cost_price, selling_price, profit_per_item, user_id) VALUES (?, ?, ?, ?, ?, ?)")
+                    ->execute([$id, $addQty, (float)$product['cost_price'], (float)$price, $profit, $me['id'] ?? null]);
+            }
+
             header("Location: products.php?success=updated"); exit;
         }
     }
 }
 
-$products = $pdo->query("SELECT * FROM products ORDER BY created_at DESC")->fetchAll(PDO::FETCH_ASSOC);
+$products = $pdo->query("
+    SELECT p.*,
+           (p.price - p.cost_price) AS profit_per_item,
+           CASE WHEN p.cost_price > 0 THEN ((p.price - p.cost_price) / p.cost_price * 100) ELSE 0 END AS profit_pct
+    FROM products p
+    ORDER BY p.created_at DESC
+")->fetchAll(PDO::FETCH_ASSOC);
 
 $msgMap = [
     'added'   => 'Product add ho gaya!',
     'updated' => 'Product update ho gaya!',
     'deleted' => 'Product delete ho gaya!',
 ];
+
+// Preload history for each product
+$productIds = array_column($products, 'id');
+$purchasesByProduct = [];
+$salesByProduct = [];
+
+if (!empty($productIds)) {
+    $in = implode(',', array_map('intval', $productIds));
+
+    $purchases = $pdo->query("
+        SELECT p.*, u.username AS buyer_name, u.color AS buyer_color
+        FROM purchases p
+        LEFT JOIN users u ON u.id = p.user_id
+        WHERE p.product_id IN ($in)
+        ORDER BY p.purchased_at DESC
+    ")->fetchAll(PDO::FETCH_ASSOC);
+
+    foreach ($purchases as $row) {
+        $purchasesByProduct[(int)$row['product_id']][] = $row;
+    }
+
+    $sales = $pdo->query("
+        SELECT s.*, u.username AS seller_name, u.color AS seller_color
+        FROM sales s
+        LEFT JOIN users u ON u.id = s.user_id
+        WHERE s.product_id IN ($in)
+        ORDER BY s.sold_at DESC
+    ")->fetchAll(PDO::FETCH_ASSOC);
+
+    foreach ($sales as $row) {
+        $salesByProduct[(int)$row['product_id']][] = $row;
+    }
+}
+
 $activePage = 'products';
 ?>
 <!DOCTYPE html>
@@ -88,9 +136,9 @@ $activePage = 'products';
                 </p>
             </div>
             <?php if ($isAdmin): ?>
-            <button type="button" class="btn-primary" data-popup-form="product" style="width:auto;padding:10px 18px;margin:0;border:none;cursor:pointer;">
-                <i class="fa-solid fa-plus"></i> Add Product
-            </button>
+            <a href="wholesale.php" class="btn-primary" style="width:auto;padding:10px 18px;margin:0;text-decoration:none;">
+                <i class="fa-solid fa-warehouse"></i> Add via Wholesale
+            </a>
             <?php endif; ?>
         </header>
 
@@ -110,10 +158,10 @@ $activePage = 'products';
                 <i class="fa-solid fa-box-open" style="font-size:40px;color:var(--text-light);margin-bottom:14px;"></i>
                 <h3 style="margin-bottom:8px;">Koi product nahi hai</h3>
                 <?php if ($isAdmin): ?>
-                    <p class="muted" style="margin-bottom:16px;">Apna pehla product add karein.</p>
-                    <button type="button" class="btn-primary" data-popup-form="product" style="width:auto;display:inline-flex;padding:10px 20px;margin:0;border:none;cursor:pointer;">
-                        <i class="fa-solid fa-plus"></i> Add Product
-                    </button>
+                    <p class="muted" style="margin-bottom:16px;">Wholesale page se pehla product add karein.</p>
+                    <a href="wholesale.php" class="btn-primary" style="width:auto;display:inline-flex;padding:10px 20px;margin:0;text-decoration:none;">
+                        <i class="fa-solid fa-warehouse"></i> Go to Wholesale
+                    </a>
                 <?php else: ?>
                     <p class="muted">Admin se products add karwayein.</p>
                 <?php endif; ?>
@@ -128,14 +176,19 @@ $activePage = 'products';
             </button>
         </div>
 
-        <div class="glass panel" style="padding:0;overflow:hidden;margin-top:14px;" id="tableWrap">
+        <div class="glass panel" style="padding:0;overflow:auto;margin-top:14px;" id="tableWrap">
             <table class="table">
                 <thead>
                     <tr>
                         <th>#</th>
                         <th>Product Name</th>
                         <th class="text-right">Quantity</th>
-                        <th class="text-right">Price/Item</th>
+                        <th class="text-right">Purchase</th>
+                        <th class="text-right">Selling</th>
+                        <?php if ($isAdmin): ?>
+                            <th class="text-right">Profit/Item</th>
+                            <th class="text-right">Profit %</th>
+                        <?php endif; ?>
                         <th class="text-right">Stock Value</th>
                         <?php if ($isAdmin): ?><th class="text-center">Actions</th><?php endif; ?>
                     </tr>
@@ -144,32 +197,113 @@ $activePage = 'products';
                     <?php foreach ($products as $i => $p):
                         $stock = $p['quantity'] * $p['price'];
                         $low = $p['quantity'] <= 5;
-                        $productJson = json_encode([
-                            'id' => (int)$p['id'],
-                            'name' => $p['name'],
-                            'quantity' => (int)$p['quantity'],
-                            'price' => (float)$p['price'],
+                        $profit = (float)$p['profit_per_item'];
+                        $pct = (float)$p['profit_pct'];
+                        $totalProfit = $profit * (int)$p['quantity'];
+
+                        $pid = (int)$p['id'];
+                        $purchaseHistory = $purchasesByProduct[$pid] ?? [];
+                        $salesHistory = $salesByProduct[$pid] ?? [];
+
+                        // Compute totals
+                        $totalPurchasedQty = 0;
+                        $totalPurchaseCost = 0;
+                        foreach ($purchaseHistory as $ph) {
+                            $totalPurchasedQty += (int)$ph['quantity'];
+                            $totalPurchaseCost += (int)$ph['quantity'] * (float)$ph['cost_price'];
+                        }
+
+                        $totalSoldQty = 0;
+                        $totalSoldRevenue = 0;
+                        $totalSoldProfit = 0;
+                        $totalSoldLoss = 0;
+                        foreach ($salesHistory as $sh) {
+                            $totalSoldQty += (int)$sh['quantity'];
+                            $totalSoldRevenue += (float)$sh['total'];
+
+                            $pl = (float)($sh['profit_loss'] ?? 0);
+                            if ($pl > 0) {
+                                $totalSoldProfit += $pl;
+                            } elseif ($pl < 0) {
+                                $totalSoldLoss += abs($pl);
+                            }
+                        }
+
+                        $productDetailJson = json_encode([
+                            'id'             => $pid,
+                            'name'           => $p['name'],
+                            'quantity'       => (int)$p['quantity'],
+                            'price'          => (float)$p['price'],
+                            'cost_price'     => (float)$p['cost_price'],
+                            'profit_per_item'=> round($profit, 2),
+                            'profit_pct'     => round($pct, 2),
+                            'stock_value'    => round($stock, 2),
+                            'total_profit'   => round($totalProfit, 2),
+                            'created_at'     => date('d M Y, h:i A', strtotime($p['created_at'])),
+                            'low_stock'      => $low,
+                            'is_admin'       => $isAdmin,
+                            'purchase_history' => array_map(function($r) {
+                                return [
+                                    'quantity'     => (int)$r['quantity'],
+                                    'cost_price'   => (float)$r['cost_price'],
+                                    'selling_price'=> (float)$r['selling_price'],
+                                    'profit'       => (float)$r['profit_per_item'],
+                                    'date'         => date('d M Y, h:i A', strtotime($r['purchased_at'])),
+                                    'buyer'        => $r['buyer_name'] ?? 'Admin',
+                                    'buyer_color'  => $r['buyer_color'] ?? null,
+                                ];
+                            }, $purchaseHistory),
+                            'sales_history' => array_map(function($r) {
+                                return [
+                                    'quantity'    => (int)$r['quantity'],
+                                    'price'       => (float)$r['price_per_item'],
+                                    'total'       => (float)$r['total'],
+                                    'profit_loss' => (float)($r['profit_loss'] ?? 0),
+                                    'date'        => date('d M Y, h:i A', strtotime($r['sold_at'])),
+                                    'seller'      => $r['seller_name'] ?? 'Unknown',
+                                    'seller_color'=> $r['seller_color'] ?? null,
+                                ];
+                            }, $salesHistory),
+                            'summary' => [
+                                'total_purchased_qty'   => $totalPurchasedQty,
+                                'total_purchase_cost'   => round($totalPurchaseCost, 2),
+                                'total_sold_qty'        => $totalSoldQty,
+                                'total_sold_revenue'    => round($totalSoldRevenue, 2),
+                                'total_sold_profit'     => round($totalSoldProfit, 2),
+                                'total_sold_loss'       => round($totalSoldLoss, 2),
+                            ],
                         ], JSON_HEX_APOS | JSON_HEX_QUOT);
                     ?>
                     <tr data-name="<?= htmlspecialchars(strtolower($p['name'])) ?>">
                         <td class="muted row-num"><?= $i + 1 ?></td>
                         <td>
-                            <strong><?= htmlspecialchars($p['name']) ?></strong>
+                            <button type="button" class="product-name-btn"
+                                    data-popup-form="product-detail"
+                                    data-product='<?= htmlspecialchars($productDetailJson, ENT_QUOTES, "UTF-8") ?>'>
+                                <?= htmlspecialchars($p['name']) ?>
+                            </button>
                             <?php if ($low): ?><span class="badge badge-danger" style="margin-left:6px;">Low</span><?php endif; ?>
                         </td>
                         <td class="text-right"><span class="<?= $low ? 'text-danger' : '' ?>"><strong><?= $p['quantity'] ?></strong></span></td>
+                        <td class="text-right">Rs <?= number_format($p['cost_price'], 2) ?></td>
                         <td class="text-right">Rs <?= number_format($p['price'], 2) ?></td>
+                        <?php if ($isAdmin): ?>
+                            <td class="text-right" style="color:var(--success);font-weight:600;">
+                                Rs <?= number_format($profit, 2) ?>
+                            </td>
+                            <td class="text-right" style="color:var(--success);font-weight:600;">
+                                <?= number_format($pct, 1) ?>%
+                            </td>
+                        <?php endif; ?>
                         <td class="text-right"><strong>Rs <?= number_format($stock, 2) ?></strong></td>
                         <?php if ($isAdmin): ?>
                         <td class="text-center">
                             <div class="action-group">
-                                <button type="button" class="btn-icon" title="Edit"
-                                        data-popup-form="product-edit"
-                                        data-product='<?= htmlspecialchars($productJson, ENT_QUOTES, "UTF-8") ?>'>
+                                <a href="wholesale.php?edit=<?= $p['id'] ?>" class="btn-icon" title="Edit wholesale">
                                     <i class="fa-solid fa-pen"></i>
-                                </button>
+                                </a>
                                 <a href="product-delete.php?id=<?= $p['id'] ?>" class="btn-icon danger" title="Delete"
-                                   data-confirm="This product will be permanently deleted along with its sales history."
+                                   data-confirm="This product will be permanently deleted."
                                    data-confirm-title="Delete &quot;<?= htmlspecialchars($p['name']) ?>&quot;?"
                                    data-confirm-btn="Yes, Delete"
                                    data-cancel-btn="Cancel"

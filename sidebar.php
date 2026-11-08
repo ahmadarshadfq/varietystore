@@ -4,12 +4,13 @@ $me = currentUser();
 $currentUsername = $me['username'] ?? 'User';
 $currentEmail    = $me['email'] ?? '';
 $currentRole     = $me['role'] ?? 'member';
-$currentColor    = $me['color'] ?? '#4f46e5';
+$currentColor    = $me['color'] ?? '#10b981';
 $switched        = isSwitched();
 $adminInfo       = $switched ? realAdmin() : null;
+$isRealAdmin     = !$switched && $currentRole === 'admin';
 
 $membersJson = '[]';
-if (!$switched && $currentRole === 'admin') {
+if ($isRealAdmin) {
     $all = $pdo->query("SELECT id, username, email, role, color, created_at FROM users ORDER BY role DESC, id ASC")->fetchAll(PDO::FETCH_ASSOC);
     $membersJson = json_encode($all, JSON_HEX_APOS | JSON_HEX_QUOT);
 }
@@ -46,7 +47,7 @@ $userData = json_encode([
 
     <div class="sidebar-brand">
         <i class="fa-solid fa-cube"></i>
-        <span>Variety Store Inventory Manager</span>
+        <span>Inventory</span>
     </div>
 
     <ul class="nav">
@@ -56,6 +57,13 @@ $userData = json_encode([
         <li><a href="products.php" class="<?= $activePage === 'products' ? 'active' : '' ?>">
             <i class="fa-solid fa-box"></i> Products
         </a></li>
+
+        <?php if ($isRealAdmin): ?>
+        <li><a href="wholesale.php" class="<?= $activePage === 'wholesale' ? 'active' : '' ?>">
+            <i class="fa-solid fa-warehouse"></i> Wholesale
+        </a></li>
+        <?php endif; ?>
+
         <li><a href="sales.php" class="<?= $activePage === 'sales' ? 'active' : '' ?>">
             <i class="fa-solid fa-receipt"></i> Sales
         </a></li>

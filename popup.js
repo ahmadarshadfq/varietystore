@@ -1,70 +1,88 @@
 /* ============================================================
-   Custom Popup + Alerts + Transitions + Form Popups + Profiles + Color
+   Custom Popup + Alerts + Transitions + Form Popups + Profiles + Product Detail
    ============================================================ */
 
 (function () {
-    'use strict';
+  "use strict";
 
-    let pendingElement = null;
-    let pendingType = null;
+  let pendingElement = null;
+  let pendingType = null;
 
-    const COLOR_PRESETS = [
-        '#4f46e5', // indigo
-        '#2563eb', // blue
-        '#0891b2', // cyan
-        '#16a34a', // green
-        '#65a30d', // lime
-        '#ca8a04', // yellow
-        '#ea580c', // orange
-        '#dc2626', // red
-        '#db2777', // pink
-        '#9333ea', // purple
-        '#475569', // slate
-        '#0f172a', // near black
-    ];
+  const COLOR_PRESETS = [
+    "#4f46e5",
+    "#2563eb",
+    "#0891b2",
+    "#16a34a",
+    "#65a30d",
+    "#ca8a04",
+    "#ea580c",
+    "#dc2626",
+    "#db2777",
+    "#9333ea",
+    "#475569",
+    "#0f172a",
+  ];
 
-    function getMainContent() { return document.querySelector('.main-content'); }
+  function getMainContent() {
+    return document.querySelector(".main-content");
+  }
 
-    /* ---------- PAGE TRANSITIONS ---------- */
-    function initPageTransitions() {
-        const main = getMainContent();
-        if (main) {
-            main.classList.add('mc-enter');
-            requestAnimationFrame(function () {
-                requestAnimationFrame(function () {
-                    main.classList.remove('mc-enter');
-                    main.classList.add('mc-active');
-                });
-            });
-        }
-        document.addEventListener('click', function (e) {
-            const link = e.target.closest('a');
-            if (!link) return;
-            const href = link.getAttribute('href');
-            if (!href) return;
-            if (
-                href.startsWith('#') || href.startsWith('javascript:') || href.startsWith('mailto:') ||
-                href.startsWith('tel:') || link.target === '_blank' || link.hasAttribute('download') ||
-                link.hasAttribute('data-popup-form') || e.ctrlKey || e.metaKey || e.shiftKey || e.button !== 0
-            ) return;
-            if (link.hasAttribute('data-confirm')) return;
-            try {
-                const url = new URL(href, window.location.href);
-                if (url.origin !== window.location.origin) return;
-            } catch (_) { return; }
-            const m = getMainContent();
-            if (!m) { window.location.href = href; return; }
-            e.preventDefault();
-            m.classList.remove('mc-active');
-            m.classList.add('mc-exit');
-            setTimeout(function () { window.location.href = href; }, 280);
+  /* ---------- PAGE TRANSITIONS ---------- */
+  function initPageTransitions() {
+    const main = getMainContent();
+    if (main) {
+      main.classList.add("mc-enter");
+      requestAnimationFrame(function () {
+        requestAnimationFrame(function () {
+          main.classList.remove("mc-enter");
+          main.classList.add("mc-active");
         });
+      });
     }
+    document.addEventListener("click", function (e) {
+      const link = e.target.closest("a");
+      if (!link) return;
+      const href = link.getAttribute("href");
+      if (!href) return;
+      if (
+        href.startsWith("#") ||
+        href.startsWith("javascript:") ||
+        href.startsWith("mailto:") ||
+        href.startsWith("tel:") ||
+        link.target === "_blank" ||
+        link.hasAttribute("download") ||
+        link.hasAttribute("data-popup-form") ||
+        e.ctrlKey ||
+        e.metaKey ||
+        e.shiftKey ||
+        e.button !== 0
+      )
+        return;
+      if (link.hasAttribute("data-confirm")) return;
+      try {
+        const url = new URL(href, window.location.href);
+        if (url.origin !== window.location.origin) return;
+      } catch (_) {
+        return;
+      }
+      const m = getMainContent();
+      if (!m) {
+        window.location.href = href;
+        return;
+      }
+      e.preventDefault();
+      m.classList.remove("mc-active");
+      m.classList.add("mc-exit");
+      setTimeout(function () {
+        window.location.href = href;
+      }, 280);
+    });
+  }
 
-    /* ---------- CONFIRM MODAL ---------- */
-    function injectModal() {
-        if (document.getElementById('customModalOverlay')) return;
-        const modalHTML = `
+  /* ---------- CONFIRM MODAL ---------- */
+  function injectModal() {
+    if (document.getElementById("customModalOverlay")) return;
+    const modalHTML = `
         <div class="modal-overlay" id="customModalOverlay">
             <div class="modal-box">
                 <div class="modal-icon danger" id="modalIcon"><i class="fa-solid fa-triangle-exclamation"></i></div>
@@ -76,60 +94,92 @@
                 </div>
             </div>
         </div>`;
-        document.body.insertAdjacentHTML('beforeend', modalHTML);
+    document.body.insertAdjacentHTML("beforeend", modalHTML);
+  }
+
+  function openModal(opts) {
+    const overlay = document.getElementById("customModalOverlay");
+    if (!overlay) {
+      injectModal();
+      return openModal(opts);
     }
+    document.getElementById("modalTitle").textContent =
+      opts.title || "Are you sure?";
+    document.getElementById("modalMessage").textContent = opts.message || "";
+    const iconEl = document.getElementById("modalIcon");
+    iconEl.className = "modal-icon " + (opts.type || "warning");
+    iconEl.innerHTML =
+      opts.icon || '<i class="fa-solid fa-triangle-exclamation"></i>';
+    const okBtn = document.getElementById("modalConfirm");
+    const cancelBtn = document.getElementById("modalCancel");
+    okBtn.className =
+      "modal-btn " + (opts.danger ? "modal-danger" : "modal-confirm");
+    okBtn.innerHTML =
+      (opts.danger
+        ? '<i class="fa-solid fa-right-from-bracket"></i> '
+        : '<i class="fa-solid fa-check"></i> ') +
+      (opts.confirmText || "Confirm");
+    cancelBtn.innerHTML =
+      '<i class="fa-solid fa-xmark"></i> ' + (opts.cancelText || "Cancel");
+    overlay.classList.add("active");
+    document.body.style.overflow = "hidden";
 
-    function openModal(opts) {
-        const overlay = document.getElementById('customModalOverlay');
-        if (!overlay) { injectModal(); return openModal(opts); }
-        document.getElementById('modalTitle').textContent = opts.title || 'Are you sure?';
-        document.getElementById('modalMessage').textContent = opts.message || '';
-        const iconEl = document.getElementById('modalIcon');
-        iconEl.className = 'modal-icon ' + (opts.type || 'warning');
-        iconEl.innerHTML = opts.icon || '<i class="fa-solid fa-triangle-exclamation"></i>';
-        const okBtn = document.getElementById('modalConfirm');
-        const cancelBtn = document.getElementById('modalCancel');
-        okBtn.className = 'modal-btn ' + (opts.danger ? 'modal-danger' : 'modal-confirm');
-        okBtn.innerHTML = (opts.danger ? '<i class="fa-solid fa-right-from-bracket"></i> ' : '<i class="fa-solid fa-check"></i> ') + (opts.confirmText || 'Confirm');
-        cancelBtn.innerHTML = '<i class="fa-solid fa-xmark"></i> ' + (opts.cancelText || 'Cancel');
-        overlay.classList.add('active');
-        document.body.style.overflow = 'hidden';
+    const newOk = okBtn.cloneNode(true);
+    const newCancel = cancelBtn.cloneNode(true);
+    okBtn.replaceWith(newOk);
+    cancelBtn.replaceWith(newCancel);
 
-        const newOk = okBtn.cloneNode(true);
-        const newCancel = cancelBtn.cloneNode(true);
-        okBtn.replaceWith(newOk);
-        cancelBtn.replaceWith(newCancel);
+    newOk.addEventListener("click", function () {
+      closeModal();
+      if (pendingType === "link" && pendingElement) {
+        const target = pendingElement.href;
+        const m = getMainContent();
+        if (m) {
+          m.classList.remove("mc-active");
+          m.classList.add("mc-exit");
+          setTimeout(function () {
+            window.location.href = target;
+          }, 280);
+        } else window.location.href = target;
+      } else if (pendingType === "form" && pendingElement) {
+        pendingElement.dataset.confirmed = "1";
+        pendingElement.submit();
+      }
+      pendingElement = null;
+      pendingType = null;
+    });
+    newCancel.addEventListener("click", function () {
+      closeModal();
+      pendingElement = null;
+      pendingType = null;
+    });
+    overlay.onclick = (e) => {
+      if (e.target === overlay) {
+        closeModal();
+        pendingElement = null;
+        pendingType = null;
+      }
+    };
+    document.onkeydown = (e) => {
+      if (e.key === "Escape") {
+        closeModal();
+        pendingElement = null;
+        pendingType = null;
+      }
+    };
+  }
 
-        newOk.addEventListener('click', function () {
-            closeModal();
-            if (pendingType === 'link' && pendingElement) {
-                const target = pendingElement.href;
-                const m = getMainContent();
-                if (m) { m.classList.remove('mc-active'); m.classList.add('mc-exit'); setTimeout(function () { window.location.href = target; }, 280); }
-                else window.location.href = target;
-            } else if (pendingType === 'form' && pendingElement) {
-                pendingElement.dataset.confirmed = '1';
-                pendingElement.submit();
-            }
-            pendingElement = null;
-            pendingType = null;
-        });
-        newCancel.addEventListener('click', function () { closeModal(); pendingElement = null; pendingType = null; });
-        overlay.onclick = (e) => { if (e.target === overlay) { closeModal(); pendingElement = null; pendingType = null; } };
-        document.onkeydown = (e) => { if (e.key === 'Escape') { closeModal(); pendingElement = null; pendingType = null; } };
-    }
+  function closeModal() {
+    const overlay = document.getElementById("customModalOverlay");
+    if (overlay) overlay.classList.remove("active");
+    document.body.style.overflow = "";
+    document.onkeydown = null;
+  }
 
-    function closeModal() {
-        const overlay = document.getElementById('customModalOverlay');
-        if (overlay) overlay.classList.remove('active');
-        document.body.style.overflow = '';
-        document.onkeydown = null;
-    }
-
-    /* ---------- FORM POPUP ---------- */
-    function injectFormModal() {
-        if (document.getElementById('formPopupOverlay')) return;
-        const html = `
+  /* ---------- FORM POPUP ---------- */
+  function injectFormModal() {
+    if (document.getElementById("formPopupOverlay")) return;
+    const html = `
         <div class="modal-overlay" id="formPopupOverlay">
             <div class="modal-box modal-box-form" id="formPopupBox">
                 <div class="fp-header">
@@ -151,68 +201,99 @@
                 </form>
             </div>
         </div>`;
-        document.body.insertAdjacentHTML('beforeend', html);
-    }
+    document.body.insertAdjacentHTML("beforeend", html);
+  }
 
-    function openFormPopup(opts) {
-        injectFormModal();
-        const overlay = document.getElementById('formPopupOverlay');
-        const form = document.getElementById('fpForm');
-        const body = document.getElementById('fpBody');
-        const submitBtn = document.getElementById('fpSubmit');
+  function openFormPopup(opts) {
+    injectFormModal();
+    const overlay = document.getElementById("formPopupOverlay");
+    const form = document.getElementById("fpForm");
+    const body = document.getElementById("fpBody");
+    const submitBtn = document.getElementById("fpSubmit");
 
-        document.getElementById('fpTitle').textContent = opts.title || 'Form';
-        document.getElementById('fpSubtitle').textContent = opts.subtitle || '';
-        const icon = document.getElementById('fpIcon');
-        icon.className = 'modal-icon ' + (opts.iconType || 'info');
-        icon.innerHTML = opts.icon || '<i class="fa-solid fa-plus"></i>';
-        form.action = opts.action || '';
-        form.method = opts.method || 'POST';
-        form.noValidate = true;
-        submitBtn.innerHTML = '<i class="fa-solid fa-check"></i> ' + (opts.submitText || 'Save');
-        body.innerHTML = opts.body || '';
+    document.getElementById("fpTitle").textContent = opts.title || "Form";
+    document.getElementById("fpSubtitle").textContent = opts.subtitle || "";
+    const icon = document.getElementById("fpIcon");
+    icon.className = "modal-icon " + (opts.iconType || "info");
+    icon.innerHTML = opts.icon || '<i class="fa-solid fa-plus"></i>';
+    form.action = opts.action || "";
+    form.method = opts.method || "POST";
+    form.noValidate = true;
+    submitBtn.innerHTML =
+      '<i class="fa-solid fa-check"></i> ' + (opts.submitText || "Save");
+    body.innerHTML = opts.body || "";
 
-        overlay.classList.add('active');
-        document.body.style.overflow = 'hidden';
+    overlay.classList.add("active");
+    document.body.style.overflow = "hidden";
 
-        setTimeout(function () {
-            const first = body.querySelector('input:not([readonly]):not([disabled]), select, textarea');
-            if (first) first.focus();
-        }, 50);
+    setTimeout(function () {
+      const first = body.querySelector(
+        "input:not([readonly]):not([disabled]), select, textarea",
+      );
+      if (first) first.focus();
+    }, 50);
 
-        const close = () => { overlay.classList.remove('active'); document.body.style.overflow = ''; };
-        document.getElementById('fpClose').onclick = close;
-        document.getElementById('fpCancel').onclick = close;
-        overlay.onclick = (e) => { if (e.target === overlay) close(); };
-        document.onkeydown = (e) => { if (e.key === 'Escape') close(); };
-    }
+    const close = () => {
+      overlay.classList.remove("active");
+      document.body.style.overflow = "";
+    };
+    document.getElementById("fpClose").onclick = close;
+    document.getElementById("fpCancel").onclick = close;
+    overlay.onclick = (e) => {
+      if (e.target === overlay) close();
+    };
+    document.onkeydown = (e) => {
+      if (e.key === "Escape") close();
+    };
+  }
 
-    /* ---------- HELPERS ---------- */
-    function escapeHtml(str) {
-        return String(str).replace(/[&<>"']/g, m => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[m]));
-    }
+  /* ---------- HELPERS ---------- */
+  function escapeHtml(str) {
+    return String(str).replace(
+      /[&<>"']/g,
+      (m) =>
+        ({
+          "&": "&amp;",
+          "<": "&lt;",
+          ">": "&gt;",
+          '"': "&quot;",
+          "'": "&#39;",
+        })[m],
+    );
+  }
 
-    function maskText(str, frontPct = 0.10, backPct = 0.10) {
-        str = String(str || '');
-        if (str.length <= 2) return '•••';
-        const front = Math.max(1, Math.ceil(str.length * frontPct));
-        const back  = Math.max(1, Math.ceil(str.length * backPct));
-        if (front + back >= str.length) return str.charAt(0) + '•••' + str.charAt(str.length - 1);
-        return str.slice(0, front) + '•'.repeat(Math.max(3, str.length - front - back)) + str.slice(-back);
-    }
+  function maskText(str, frontPct = 0.1, backPct = 0.1) {
+    str = String(str || "");
+    if (str.length <= 2) return "•••";
+    const front = Math.max(1, Math.ceil(str.length * frontPct));
+    const back = Math.max(1, Math.ceil(str.length * backPct));
+    if (front + back >= str.length)
+      return str.charAt(0) + "•••" + str.charAt(str.length - 1);
+    return (
+      str.slice(0, front) +
+      "•".repeat(Math.max(3, str.length - front - back)) +
+      str.slice(-back)
+    );
+  }
 
-    function isValidHex(c) { return /^#[0-9A-Fa-f]{6}$/.test(c); }
+  function isValidHex(c) {
+    return /^#[0-9A-Fa-f]{6}$/.test(c);
+  }
+  function fmtRs(n) {
+    return "Rs " + (parseFloat(n) || 0).toFixed(2);
+  }
 
-    /* ---------- COLOR PICKER BUILDER ---------- */
-    function buildColorPicker(currentColor, fieldName = 'color') {
-        currentColor = isValidHex(currentColor) ? currentColor : '#4f46e5';
-        let swatches = '';
-        COLOR_PRESETS.forEach(c => {
-            const selected = c.toLowerCase() === currentColor.toLowerCase() ? 'selected' : '';
-            swatches += `<button type="button" class="color-swatch ${selected}" data-color="${c}" style="background:${c};" title="${c}"></button>`;
-        });
-        return `
-            <label class="form-label">Profile Color <span class="muted" style="font-weight:400;font-size:12px;">(sales row is color se highlight hogi)</span></label>
+  /* ---------- COLOR PICKER ---------- */
+  function buildColorPicker(currentColor, fieldName = "color") {
+    currentColor = isValidHex(currentColor) ? currentColor : "#4f46e5";
+    let swatches = "";
+    COLOR_PRESETS.forEach((c) => {
+      const selected =
+        c.toLowerCase() === currentColor.toLowerCase() ? "selected" : "";
+      swatches += `<button type="button" class="color-swatch ${selected}" data-color="${c}" style="background:${c};" title="${c}"></button>`;
+    });
+    return `
+            <label class="form-label">Profile Color</label>
             <div class="color-picker" data-color-picker>
                 <div class="color-swatches">${swatches}</div>
                 <div class="color-custom-row">
@@ -221,48 +302,57 @@
                 </div>
             </div>
         `;
+  }
+
+  function attachColorPickerLogic(container) {
+    if (!container) return;
+    const picker = container.querySelector("[data-color-picker]");
+    if (!picker) return;
+    const native = picker.querySelector("[data-color-native]");
+    const hex = picker.querySelector("[data-color-hex]");
+    const swatches = picker.querySelectorAll(".color-swatch");
+    function setColor(c) {
+      if (!isValidHex(c)) return;
+      native.value = c;
+      hex.value = c;
+      swatches.forEach((s) =>
+        s.classList.toggle(
+          "selected",
+          s.dataset.color.toLowerCase() === c.toLowerCase(),
+        ),
+      );
     }
+    swatches.forEach((s) =>
+      s.addEventListener("click", function () {
+        setColor(this.dataset.color);
+      }),
+    );
+    native.addEventListener("input", function () {
+      setColor(this.value);
+    });
+    hex.addEventListener("input", function () {
+      const v = this.value.trim();
+      if (isValidHex(v)) {
+        native.value = v;
+        swatches.forEach((s) =>
+          s.classList.toggle(
+            "selected",
+            s.dataset.color.toLowerCase() === v.toLowerCase(),
+          ),
+        );
+      }
+    });
+  }
 
-    function attachColorPickerLogic(container) {
-        if (!container) return;
-        const picker = container.querySelector('[data-color-picker]');
-        if (!picker) return;
-
-        const native = picker.querySelector('[data-color-native]');
-        const hex    = picker.querySelector('[data-color-hex]');
-        const swatches = picker.querySelectorAll('.color-swatch');
-
-        function setColor(c) {
-            if (!isValidHex(c)) return;
-            native.value = c;
-            hex.value = c;
-            swatches.forEach(s => s.classList.toggle('selected', s.dataset.color.toLowerCase() === c.toLowerCase()));
-        }
-
-        swatches.forEach(s => {
-            s.addEventListener('click', function () { setColor(this.dataset.color); });
-        });
-
-        native.addEventListener('input', function () { setColor(this.value); });
-
-        hex.addEventListener('input', function () {
-            const v = this.value.trim();
-            if (isValidHex(v)) {
-                native.value = v;
-                swatches.forEach(s => s.classList.toggle('selected', s.dataset.color.toLowerCase() === v.toLowerCase()));
-            }
-        });
-    }
-
-    /* ---------- SALE FORM ---------- */
-    function buildSaleForm(products) {
-        let options = '<option value="">-- Choose product --</option>';
-        products.forEach(p => {
-            options += `<option value="${p.id}" data-price="${p.price}" data-stock="${p.quantity}">
+  /* ---------- SALE FORM (with custom price override) ---------- */
+  function buildSaleForm(products) {
+    let options = '<option value="">-- Choose product --</option>';
+    products.forEach((p) => {
+      options += `<option value="${p.id}" data-price="${p.price}" data-cost="${p.cost_price || 0}" data-stock="${p.quantity}">
                 ${escapeHtml(p.name)} (Stock: ${p.quantity} | Rs ${p.price})
             </option>`;
-        });
-        return `
+    });
+    return `
             <label class="form-label">Select Product</label>
             <div class="input-group">
                 <i class="fa-solid fa-box input-icon"></i>
@@ -273,33 +363,85 @@
                 <i class="fa-solid fa-hashtag input-icon"></i>
                 <input type="number" name="quantity" id="popupSaleQty" placeholder="e.g. 5" min="1" step="1" required>
             </div>
-            <div class="sale-summary">
-                <div><span>Price / item</span><strong id="popupSumPrice">Rs 0.00</strong></div>
+            <label class="form-label">Sale Price per Item <span class="muted" style="font-weight:400;font-size:12px;">(default price se kam/zyada bhi kar sakte hain)</span></label>
+            <div class="input-group">
+                <i class="fa-solid fa-tag input-icon"></i>
+                <input type="number" name="custom_price" id="popupSalePrice" placeholder="e.g. 12.00" min="0" step="0.01">
+            </div>
+            <div class="sale-summary" style="flex-wrap:wrap;">
+                <div><span>Cost / item</span><strong id="popupSumCost">Rs 0.00</strong></div>
+                <div><span>Sale price / item</span><strong id="popupSumPrice">Rs 0.00</strong></div>
                 <div><span>Total</span><strong id="popupSumTotal">Rs 0.00</strong></div>
-            </div>`;
-    }
+                <div style="grid-column:1/-1; padding-top:8px; border-top:1px solid var(--border);">
+                    <span>Profit / Loss</span>
+                    <strong id="popupSumPL" style="font-size:16px;">Rs 0.00</strong>
+                </div>
+            </div>
+            <p class="qty-hint">
+                <i class="fa-solid fa-circle-info"></i>
+                Agar sale price <strong>cost se kam</strong> hoga to <span style="color:var(--danger);font-weight:600;">Loss</span> hoga,
+                agar <strong>cost se zyada</strong> hoga to <span style="color:var(--success);font-weight:600;">Profit</span>.
+            </p>`;
+  }
 
-    function attachSaleFormLogic() {
-        setTimeout(function () {
-            const sel = document.getElementById('popupSaleProduct');
-            const qty = document.getElementById('popupSaleQty');
-            if (!sel || !qty) return;
-            function update() {
-                const opt = sel.options[sel.selectedIndex];
-                const price = parseFloat(opt?.dataset?.price || 0);
-                const q = parseInt(qty.value || 0);
-                document.getElementById('popupSumPrice').textContent = 'Rs ' + price.toFixed(2);
-                document.getElementById('popupSumTotal').textContent = 'Rs ' + (price * q).toFixed(2);
-            }
-            sel.addEventListener('change', update);
-            qty.addEventListener('input', update);
-            update();
-        }, 60);
-    }
+  function attachSaleFormLogic() {
+    setTimeout(function () {
+      const sel = document.getElementById("popupSaleProduct");
+      const qty = document.getElementById("popupSaleQty");
+      const priceInput = document.getElementById("popupSalePrice");
+      if (!sel || !qty) return;
 
-    /* ---------- PRODUCT EDIT FORM ---------- */
-    function buildProductEditForm(p) {
-        return `
+      const sumCost = document.getElementById("popupSumCost");
+      const sumPrice = document.getElementById("popupSumPrice");
+      const sumTotal = document.getElementById("popupSumTotal");
+      const sumPL = document.getElementById("popupSumPL");
+
+      function update() {
+        const opt = sel.options[sel.selectedIndex];
+        const cost = parseFloat(opt?.dataset?.cost || 0);
+        const q = parseInt(qty.value || 0);
+        const salePrice =
+          parseFloat(priceInput.value) || parseFloat(opt?.dataset?.price || 0);
+
+        const total = salePrice * q;
+        const pl = (salePrice - cost) * q;
+
+        sumCost.textContent = "Rs " + cost.toFixed(2);
+        sumPrice.textContent = "Rs " + salePrice.toFixed(2);
+        sumTotal.textContent = "Rs " + total.toFixed(2);
+
+        if (pl > 0) {
+          sumPL.textContent = "Profit Rs " + pl.toFixed(2);
+          sumPL.style.color = "var(--success)";
+        } else if (pl < 0) {
+          sumPL.textContent = "Loss Rs " + Math.abs(pl).toFixed(2);
+          sumPL.style.color = "var(--danger)";
+        } else {
+          sumPL.textContent = "No Profit/Loss";
+          sumPL.style.color = "var(--text-muted)";
+        }
+      }
+
+      sel.addEventListener("change", function () {
+        const opt = sel.options[sel.selectedIndex];
+        const defaultPrice = parseFloat(opt?.dataset?.price || 0);
+        if (defaultPrice > 0) {
+          priceInput.value = defaultPrice.toFixed(2);
+        } else {
+          priceInput.value = "";
+        }
+        update();
+      });
+
+      qty.addEventListener("input", update);
+      priceInput.addEventListener("input", update);
+      update();
+    }, 60);
+  }
+
+  /* ---------- PRODUCT EDIT FORM ---------- */
+  function buildProductEditForm(p) {
+    return `
             <input type="hidden" name="edit_id" value="${p.id}">
             <label class="form-label">Product Name</label>
             <div class="input-group"><i class="fa-solid fa-box input-icon"></i>
@@ -330,32 +472,227 @@
             <p class="qty-hint"><i class="fa-solid fa-circle-info"></i>
                 New quantity = Current <strong>${p.quantity}</strong> + Add − Remove
             </p>`;
+  }
+
+  /* ---------- PRODUCT DETAIL POPUP (with history) ---------- */
+  function buildProductDetail(p) {
+    const isAdmin = !!p.is_admin;
+    const lowBadge = p.low_stock
+      ? '<span class="badge badge-danger" style="margin-left:8px;">Low Stock</span>'
+      : "";
+
+    const purchaseHistory = p.purchase_history || [];
+    const salesHistory = p.sales_history || [];
+    const summary = p.summary || {};
+
+    let purchaseRows = "";
+    if (purchaseHistory.length === 0) {
+      purchaseRows = `<tr><td colspan="5" class="pd-empty">Koi purchase history nahi.</td></tr>`;
+    } else {
+      purchaseHistory.forEach((ph) => {
+        purchaseRows += `
+                    <tr>
+                        <td class="muted">${escapeHtml(ph.date)}</td>
+                        <td class="text-right">${ph.quantity}</td>
+                        <td class="text-right">${fmtRs(ph.cost_price)}</td>
+                        <td class="text-right">${fmtRs(ph.selling_price)}</td>
+                        <td class="text-right" style="color:var(--success);">${fmtRs(ph.profit)}</td>
+                    </tr>`;
+      });
     }
 
-    /* ---------- PROFILES POPUP ---------- */
-    function buildProfilesForm(me, members) {
-        const isAdmin = me.role === 'admin' && !me.switched;
-        const isSwitched = !!me.switched;
-        const maskedUser = maskText(me.username);
-        const maskedEmail = maskText(me.email);
-        const myColor = isValidHex(me.color) ? me.color : '#4f46e5';
+    let salesRows = "";
+    if (salesHistory.length === 0) {
+      salesRows = `<tr><td colspan="6" class="pd-empty">Koi sale history nahi.</td></tr>`;
+    } else {
+      salesHistory.forEach((sh) => {
+        const sellerDot = sh.seller_color
+          ? `<span class="seller-dot" style="background:${sh.seller_color};width:8px;height:8px;margin-right:4px;"></span>`
+          : "";
+        const pl = parseFloat(sh.profit_loss) || 0;
+        let plHtml =
+          '<span class="pl-badge pl-zero" style="font-size:10px;padding:2px 6px;">No P/L</span>';
+        if (pl > 0) {
+          plHtml = `<span class="pl-badge pl-profit" style="font-size:10px;padding:2px 6px;">+Rs ${pl.toFixed(2)}</span>`;
+        } else if (pl < 0) {
+          plHtml = `<span class="pl-badge pl-loss" style="font-size:10px;padding:2px 6px;">-Rs ${Math.abs(pl).toFixed(2)}</span>`;
+        }
+        salesRows += `
+                    <tr>
+                        <td class="muted">${escapeHtml(sh.date)}</td>
+                        <td>${sellerDot}${escapeHtml(sh.seller)}</td>
+                        <td class="text-right">${sh.quantity}</td>
+                        <td class="text-right">${fmtRs(sh.price)}</td>
+                        <td class="text-right"><strong>${fmtRs(sh.total)}</strong></td>
+                        <td class="text-right">${plHtml}</td>
+                    </tr>`;
+      });
+    }
 
-        let membersListHtml = '';
-        if (isAdmin) {
-            if (!members || members.length === 0) {
-                membersListHtml = `<p class="empty" style="padding:14px 0;font-size:12px;">Koi team member nahi hai.</p>`;
-            } else {
-                membersListHtml = '<ul class="member-list">';
-                members.forEach(m => {
-                    const roleTag = m.role === 'admin'
-                        ? '<span class="badge badge-success" style="font-size:10px;">Admin</span>'
-                        : '<span class="badge" style="background:var(--info-bg);color:var(--info);font-size:10px;">Member</span>';
-                    const isMe = m.id == me.id || m.username === me.username;
-                    const mColor = isValidHex(m.color) ? m.color : '#4f46e5';
+    return `
+            <div class="product-detail-head">
+                <div class="pd-icon"><i class="fa-solid fa-box"></i></div>
+                <div>
+                    <h2 class="pd-name">${escapeHtml(p.name)}${lowBadge}</h2>
+                    <div class="pd-id">Product ID: #${p.id}</div>
+                </div>
+            </div>
 
-                    let actions = '';
-                    if (m.role === 'member' && !isMe) {
-                        actions = `
+            <div class="pd-grid">
+                <div class="pd-stat">
+                    <div class="pd-stat-label"><i class="fa-solid fa-cubes"></i> Current Stock</div>
+                    <div class="pd-stat-value">${p.quantity}</div>
+                </div>
+                <div class="pd-stat">
+                    <div class="pd-stat-label"><i class="fa-solid fa-sack-dollar"></i> Stock Value</div>
+                    <div class="pd-stat-value">${fmtRs(p.stock_value)}</div>
+                </div>
+                ${
+                  isAdmin
+                    ? `
+                <div class="pd-stat">
+                    <div class="pd-stat-label"><i class="fa-solid fa-tag"></i> Purchase Price</div>
+                    <div class="pd-stat-value">${fmtRs(p.cost_price)}</div>
+                </div>
+                <div class="pd-stat">
+                    <div class="pd-stat-label"><i class="fa-solid fa-money-bill-trend-up"></i> Selling Price</div>
+                    <div class="pd-stat-value">${fmtRs(p.price)}</div>
+                </div>
+                <div class="pd-stat">
+                    <div class="pd-stat-label"><i class="fa-solid fa-chart-line"></i> Profit / Item</div>
+                    <div class="pd-stat-value" style="color:var(--success);">${fmtRs(p.profit_per_item)}</div>
+                </div>
+                <div class="pd-stat">
+                    <div class="pd-stat-label"><i class="fa-solid fa-percent"></i> Profit %</div>
+                    <div class="pd-stat-value" style="color:var(--success);">${(parseFloat(p.profit_pct) || 0).toFixed(1)}%</div>
+                </div>
+                `
+                    : ""
+                }
+            </div>
+
+            ${
+              isAdmin
+                ? `
+            <div class="pd-summary-grid">
+                <div class="pd-summary-card">
+                    <div class="pd-summary-label"><i class="fa-solid fa-cart-shopping"></i> Total Purchased</div>
+                    <div class="pd-summary-value">${summary.total_purchased_qty || 0} items</div>
+                    <div class="pd-summary-sub">${fmtRs(summary.total_purchase_cost || 0)}</div>
+                </div>
+                <div class="pd-summary-card">
+                    <div class="pd-summary-label"><i class="fa-solid fa-receipt"></i> Total Sold</div>
+                    <div class="pd-summary-value">${summary.total_sold_qty || 0} items</div>
+                    <div class="pd-summary-sub">${fmtRs(summary.total_sold_revenue || 0)}</div>
+                </div>
+                <div class="pd-summary-card highlight">
+                    <div class="pd-summary-label"><i class="fa-solid fa-coins"></i> Total Profit</div>
+                    <div class="pd-summary-value" style="color:var(--success);">${fmtRs(summary.total_sold_profit || 0)}</div>
+                    <div class="pd-summary-sub">from sales</div>
+                </div>
+                <div class="pd-summary-card highlight-loss">
+                    <div class="pd-summary-label"><i class="fa-solid fa-arrow-trend-down"></i> Total Loss</div>
+                    <div class="pd-summary-value" style="color:var(--danger);">${fmtRs(summary.total_sold_loss || 0)}</div>
+                    <div class="pd-summary-sub">from sales</div>
+                </div>
+            </div>
+
+            <div class="pd-history-section">
+                <h3 class="pd-history-title">
+                    <i class="fa-solid fa-cart-shopping"></i>
+                    Purchase History
+                    <span class="pd-history-count">${purchaseHistory.length}</span>
+                </h3>
+                <div class="pd-table-wrap">
+                    <table class="pd-table">
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th class="text-right">Qty</th>
+                                <th class="text-right">Purchase Price</th>
+                                <th class="text-right">Selling Price</th>
+                                <th class="text-right">Profit/Item</th>
+                            </tr>
+                        </thead>
+                        <tbody>${purchaseRows}</tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="pd-history-section">
+                <h3 class="pd-history-title">
+                    <i class="fa-solid fa-receipt"></i>
+                    Sales History
+                    <span class="pd-history-count">${salesHistory.length}</span>
+                </h3>
+                <div class="pd-table-wrap">
+                    <table class="pd-table">
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>Sold By</th>
+                                <th class="text-right">Qty</th>
+                                <th class="text-right">Price</th>
+                                <th class="text-right">Total</th>
+                                <th class="text-right">P/L</th>
+                            </tr>
+                        </thead>
+                        <tbody>${salesRows}</tbody>
+                    </table>
+                </div>
+            </div>
+            `
+                : ""
+            }
+
+            <div class="pd-footer">
+                <i class="fa-regular fa-clock"></i> Added on ${escapeHtml(p.created_at)}
+            </div>
+        `;
+  }
+
+  function attachProductDetailLogic(p) {
+    setTimeout(function () {
+      const submitBtn = document.getElementById("fpSubmit");
+      const cancelBtn = document.getElementById("fpCancel");
+      const overlay = document.getElementById("formPopupOverlay");
+      submitBtn.style.display = "none";
+      cancelBtn.innerHTML = '<i class="fa-solid fa-xmark"></i> Close';
+      cancelBtn.className = "modal-btn modal-confirm";
+
+      const newCancel = cancelBtn.cloneNode(true);
+      cancelBtn.replaceWith(newCancel);
+      newCancel.addEventListener("click", function () {
+        overlay.classList.remove("active");
+        document.body.style.overflow = "";
+      });
+    }, 60);
+  }
+
+  /* ---------- PROFILES POPUP ---------- */
+  function buildProfilesForm(me, members) {
+    const isAdmin = me.role === "admin" && !me.switched;
+    const isSwitched = !!me.switched;
+    const maskedUser = maskText(me.username);
+    const maskedEmail = maskText(me.email);
+    const myColor = isValidHex(me.color) ? me.color : "#4f46e5";
+
+    let membersListHtml = "";
+    if (isAdmin) {
+      if (!members || members.length === 0) {
+        membersListHtml = `<p class="empty" style="padding:14px 0;font-size:12px;">Koi team member nahi hai.</p>`;
+      } else {
+        membersListHtml = '<ul class="member-list">';
+        members.forEach((m) => {
+          const roleTag =
+            m.role === "admin"
+              ? '<span class="badge badge-success" style="font-size:10px;">Admin</span>'
+              : '<span class="badge" style="background:var(--info-bg);color:var(--info);font-size:10px;">Member</span>';
+          const isMe = m.id == me.id || m.username === me.username;
+          const mColor = isValidHex(m.color) ? m.color : "#4f46e5";
+          let actions = "";
+          if (m.role === "member" && !isMe) {
+            actions = `
                             <a href="member-switch.php?id=${m.id}" class="member-action switch" title="Switch to this account"
                                data-confirm="Switch to ${escapeHtml(m.username)}'s account? Aap member view mein chale jayenge."
                                data-confirm-title="Switch Account?"
@@ -365,7 +702,7 @@
                                data-icon='<i class="fa-solid fa-right-left"></i>'>
                                 <i class="fa-solid fa-right-left"></i>
                             </a>
-                            <button type="button" class="member-action" data-member-edit='${JSON.stringify({id:m.id, username:m.username, email:m.email, color:mColor}).replace(/'/g, "&#39;")}' title="Edit">
+                            <button type="button" class="member-action" data-member-edit='${JSON.stringify({ id: m.id, username: m.username, email: m.email, color: mColor }).replace(/'/g, "&#39;")}' title="Edit">
                                 <i class="fa-solid fa-pen"></i>
                             </button>
                             <a href="member-delete.php?id=${m.id}" class="member-action danger" title="Delete"
@@ -378,40 +715,40 @@
                                data-icon='<i class="fa-solid fa-user-xmark"></i>'>
                                 <i class="fa-solid fa-trash"></i>
                             </a>`;
-                    }
-                    membersListHtml += `
+          }
+          membersListHtml += `
                         <li>
                             <div class="member-info">
                                 <div class="member-avatar" style="background:${mColor}22;color:${mColor};border:2px solid ${mColor};"><i class="fa-solid fa-user"></i></div>
                                 <div style="min-width:0;flex:1;">
-                                    <div class="member-name">${escapeHtml(m.username)} ${isMe ? '<span class="muted" style="font-size:11px;">(you)</span>' : ''}</div>
+                                    <div class="member-name">${escapeHtml(m.username)} ${isMe ? '<span class="muted" style="font-size:11px;">(you)</span>' : ""}</div>
                                     <div class="member-email">${escapeHtml(m.email)}</div>
                                 </div>
                                 ${roleTag}
                             </div>
                             <div class="member-actions">${actions}</div>
                         </li>`;
-                });
-                membersListHtml += '</ul>';
-            }
-        }
+        });
+        membersListHtml += "</ul>";
+      }
+    }
 
-        let noteHtml = '';
-        if (isSwitched) {
-            noteHtml = `<p class="qty-hint" style="margin-top:16px;">
+    let noteHtml = "";
+    if (isSwitched) {
+      noteHtml = `<p class="qty-hint" style="margin-top:16px;">
                 <i class="fa-solid fa-right-left"></i>
                 Aap <strong>switched view</strong> mein hain (as ${escapeHtml(me.username)}). Admin powers ke liye "Back to Admin" dabayein.
             </p>`;
-        } else if (!isAdmin) {
-            noteHtml = `<p class="qty-hint" style="margin-top:16px;">
+    } else if (!isAdmin) {
+      noteHtml = `<p class="qty-hint" style="margin-top:16px;">
                 <i class="fa-solid fa-lock"></i>
                 Team member apni profile edit nahi kar sakta. Admin se rabta karein.
             </p>`;
-        }
+    }
 
-        const canEdit = isAdmin;
+    const canEdit = isAdmin;
 
-        return `
+    return `
             <div id="profileView">
                 <div class="profile-info-row">
                     <span class="profile-info-label">Username</span>
@@ -435,7 +772,9 @@
                 ${noteHtml}
             </div>
 
-            ${canEdit ? `
+            ${
+              canEdit
+                ? `
             <div id="profileEdit" style="display:none;">
                 <input type="hidden" name="update_profile" value="1">
                 <label class="form-label">Username</label>
@@ -460,7 +799,7 @@
                         <i class="fa-solid fa-eye"></i>
                     </button>
                 </div>
-                ${buildColorPicker(myColor, 'color')}
+                ${buildColorPicker(myColor, "color")}
             </div>
 
             <div class="members-section">
@@ -472,70 +811,80 @@
                 </div>
                 ${membersListHtml}
             </div>
-            ` : ''}
-        `;
-    }
-
-    function attachProfilesLogic(me, members) {
-        setTimeout(function () {
-            const view = document.getElementById('profileView');
-            const edit = document.getElementById('profileEdit');
-            const submitBtn = document.getElementById('fpSubmit');
-            const cancelBtn = document.getElementById('fpCancel');
-            const overlay = document.getElementById('formPopupOverlay');
-            const body = document.getElementById('fpBody');
-            const form = document.getElementById('fpForm');
-            const isAdmin = me.role === 'admin' && !me.switched;
-
-            if (!isAdmin) {
-                submitBtn.style.display = 'none';
-                cancelBtn.style.display = 'none';
-                return;
+            `
+                : ""
             }
+        `;
+  }
 
-            submitBtn.style.display = 'none';
-            cancelBtn.innerHTML = '<i class="fa-solid fa-pen"></i> Edit Profile';
-            cancelBtn.className = 'modal-btn modal-confirm';
+  function attachProfilesLogic(me, members) {
+    setTimeout(function () {
+      const view = document.getElementById("profileView");
+      const edit = document.getElementById("profileEdit");
+      const submitBtn = document.getElementById("fpSubmit");
+      const cancelBtn = document.getElementById("fpCancel");
+      const overlay = document.getElementById("formPopupOverlay");
+      const body = document.getElementById("fpBody");
+      const form = document.getElementById("fpForm");
+      const isAdmin = me.role === "admin" && !me.switched;
 
-            const newCancel = cancelBtn.cloneNode(true);
-            cancelBtn.replaceWith(newCancel);
+      if (!isAdmin) {
+        submitBtn.style.display = "none";
+        cancelBtn.style.display = "none";
+        return;
+      }
 
-            newCancel.addEventListener('click', function () {
-                if (view.style.display !== 'none') {
-                    view.style.display = 'none';
-                    edit.style.display = '';
-                    submitBtn.style.display = '';
-                    newCancel.innerHTML = '<i class="fa-solid fa-xmark"></i> Back';
-                    newCancel.className = 'modal-btn modal-cancel';
-                    attachColorPickerLogic(edit);
-                } else {
-                    view.style.display = '';
-                    edit.style.display = 'none';
-                    submitBtn.style.display = 'none';
-                    newCancel.innerHTML = '<i class="fa-solid fa-pen"></i> Edit Profile';
-                    newCancel.className = 'modal-btn modal-confirm';
-                }
-            });
+      submitBtn.style.display = "none";
+      cancelBtn.innerHTML = '<i class="fa-solid fa-pen"></i> Edit Profile';
+      cancelBtn.className = "modal-btn modal-confirm";
 
-            edit.querySelectorAll('[data-pass-toggle]').forEach(btn => {
-                btn.addEventListener('click', function () {
-                    const inp = document.getElementById(this.dataset.passToggle);
-                    const icon = this.querySelector('i');
-                    if (inp.type === 'password') { inp.type = 'text'; icon.classList.remove('fa-eye'); icon.classList.add('fa-eye-slash'); }
-                    else { inp.type = 'password'; icon.classList.remove('fa-eye-slash'); icon.classList.add('fa-eye'); }
-                });
-            });
+      const newCancel = cancelBtn.cloneNode(true);
+      cancelBtn.replaceWith(newCancel);
 
-            const addBtn = document.getElementById('addMemberBtn');
-            if (addBtn) {
-                addBtn.addEventListener('click', function () {
-                    form.action = 'member-add.php';
-                    submitBtn.style.display = '';
-                    submitBtn.innerHTML = '<i class="fa-solid fa-check"></i> Create Member';
-                    newCancel.innerHTML = '<i class="fa-solid fa-arrow-left"></i> Back';
-                    newCancel.className = 'modal-btn modal-cancel';
+      newCancel.addEventListener("click", function () {
+        if (view.style.display !== "none") {
+          view.style.display = "none";
+          edit.style.display = "";
+          submitBtn.style.display = "";
+          newCancel.innerHTML = '<i class="fa-solid fa-xmark"></i> Back';
+          newCancel.className = "modal-btn modal-cancel";
+          attachColorPickerLogic(edit);
+        } else {
+          view.style.display = "";
+          edit.style.display = "none";
+          submitBtn.style.display = "none";
+          newCancel.innerHTML = '<i class="fa-solid fa-pen"></i> Edit Profile';
+          newCancel.className = "modal-btn modal-confirm";
+        }
+      });
 
-                    body.innerHTML = `
+      edit.querySelectorAll("[data-pass-toggle]").forEach((btn) => {
+        btn.addEventListener("click", function () {
+          const inp = document.getElementById(this.dataset.passToggle);
+          const icon = this.querySelector("i");
+          if (inp.type === "password") {
+            inp.type = "text";
+            icon.classList.remove("fa-eye");
+            icon.classList.add("fa-eye-slash");
+          } else {
+            inp.type = "password";
+            icon.classList.remove("fa-eye-slash");
+            icon.classList.add("fa-eye");
+          }
+        });
+      });
+
+      const addBtn = document.getElementById("addMemberBtn");
+      if (addBtn) {
+        addBtn.addEventListener("click", function () {
+          form.action = "member-add.php";
+          submitBtn.style.display = "";
+          submitBtn.innerHTML =
+            '<i class="fa-solid fa-check"></i> Create Member';
+          newCancel.innerHTML = '<i class="fa-solid fa-arrow-left"></i> Back';
+          newCancel.className = "modal-btn modal-cancel";
+
+          body.innerHTML = `
                         <label class="form-label">Username</label>
                         <div class="input-group"><i class="fa-solid fa-user input-icon"></i>
                             <input type="text" name="username" placeholder="Member username" required>
@@ -551,44 +900,57 @@
                                 <i class="fa-solid fa-eye"></i>
                             </button>
                         </div>
-                        ${buildColorPicker('#16a34a', 'color')}
+                        ${buildColorPicker("#16a34a", "color")}
                         <p class="qty-hint"><i class="fa-solid fa-circle-info"></i>
-                            Team member <strong>product add/edit/delete</strong> nahi kar sakta. Sirf view + sales record + apni profile edit nahi kar sakta. Color sales table mein row highlight ke liye use hoga.
+                            Team member product add/edit/delete nahi kar sakta. Sirf view + sales record + apni profile edit nahi kar sakta. Color sales table mein row highlight ke liye use hoga.
                         </p>
                     `;
-                    attachColorPickerLogic(body);
-                    body.querySelectorAll('[data-pass-toggle]').forEach(btn => {
-                        btn.addEventListener('click', function () {
-                            const inp = document.getElementById(this.dataset.passToggle);
-                            const icon = this.querySelector('i');
-                            if (inp.type === 'password') { inp.type = 'text'; icon.classList.remove('fa-eye'); icon.classList.add('fa-eye-slash'); }
-                            else { inp.type = 'password'; icon.classList.remove('fa-eye-slash'); icon.classList.add('fa-eye'); }
-                        });
-                    });
+          attachColorPickerLogic(body);
+          body.querySelectorAll("[data-pass-toggle]").forEach((btn) => {
+            btn.addEventListener("click", function () {
+              const inp = document.getElementById(this.dataset.passToggle);
+              const icon = this.querySelector("i");
+              if (inp.type === "password") {
+                inp.type = "text";
+                icon.classList.remove("fa-eye");
+                icon.classList.add("fa-eye-slash");
+              } else {
+                inp.type = "password";
+                icon.classList.remove("fa-eye-slash");
+                icon.classList.add("fa-eye");
+              }
+            });
+          });
 
-                    const c2 = newCancel.cloneNode(true);
-                    newCancel.replaceWith(c2);
-                    c2.addEventListener('click', function () {
-                        overlay.classList.remove('active');
-                        const trigger = document.querySelector('[data-popup-form="profiles"]');
-                        if (trigger) trigger.click();
-                    });
-                });
-            }
+          const c2 = newCancel.cloneNode(true);
+          newCancel.replaceWith(c2);
+          c2.addEventListener("click", function () {
+            overlay.classList.remove("active");
+            const trigger = document.querySelector(
+              '[data-popup-form="profiles"]',
+            );
+            if (trigger) trigger.click();
+          });
+        });
+      }
 
-            body.querySelectorAll('[data-member-edit]').forEach(btn => {
-                btn.addEventListener('click', function () {
-                    let data;
-                    try { data = JSON.parse(this.dataset.memberEdit); }
-                    catch (e) { data = JSON.parse(this.dataset.memberEdit.replace(/&#39;/g, "'")); }
+      body.querySelectorAll("[data-member-edit]").forEach((btn) => {
+        btn.addEventListener("click", function () {
+          let data;
+          try {
+            data = JSON.parse(this.dataset.memberEdit);
+          } catch (e) {
+            data = JSON.parse(this.dataset.memberEdit.replace(/&#39;/g, "'"));
+          }
 
-                    form.action = 'member-edit.php';
-                    submitBtn.style.display = '';
-                    submitBtn.innerHTML = '<i class="fa-solid fa-check"></i> Update Member';
-                    newCancel.innerHTML = '<i class="fa-solid fa-arrow-left"></i> Back';
-                    newCancel.className = 'modal-btn modal-cancel';
+          form.action = "member-edit.php";
+          submitBtn.style.display = "";
+          submitBtn.innerHTML =
+            '<i class="fa-solid fa-check"></i> Update Member';
+          newCancel.innerHTML = '<i class="fa-solid fa-arrow-left"></i> Back';
+          newCancel.className = "modal-btn modal-cancel";
 
-                    body.innerHTML = `
+          body.innerHTML = `
                         <input type="hidden" name="id" value="${data.id}">
                         <label class="form-label">Username</label>
                         <div class="input-group"><i class="fa-solid fa-user input-icon"></i>
@@ -605,84 +967,108 @@
                                 <i class="fa-solid fa-eye"></i>
                             </button>
                         </div>
-                        ${buildColorPicker(data.color || '#16a34a', 'color')}
+                        ${buildColorPicker(data.color || "#16a34a", "color")}
                     `;
-                    attachColorPickerLogic(body);
-                    body.querySelectorAll('[data-pass-toggle]').forEach(b => {
-                        b.addEventListener('click', function () {
-                            const inp = document.getElementById(this.dataset.passToggle);
-                            const icon = this.querySelector('i');
-                            if (inp.type === 'password') { inp.type = 'text'; icon.classList.remove('fa-eye'); icon.classList.add('fa-eye-slash'); }
-                            else { inp.type = 'password'; icon.classList.remove('fa-eye-slash'); icon.classList.add('fa-eye'); }
-                        });
-                    });
-
-                    const c2 = newCancel.cloneNode(true);
-                    newCancel.replaceWith(c2);
-                    c2.addEventListener('click', function () {
-                        overlay.classList.remove('active');
-                        const trigger = document.querySelector('[data-popup-form="profiles"]');
-                        if (trigger) trigger.click();
-                    });
-                });
+          attachColorPickerLogic(body);
+          body.querySelectorAll("[data-pass-toggle]").forEach((b) => {
+            b.addEventListener("click", function () {
+              const inp = document.getElementById(this.dataset.passToggle);
+              const icon = this.querySelector("i");
+              if (inp.type === "password") {
+                inp.type = "text";
+                icon.classList.remove("fa-eye");
+                icon.classList.add("fa-eye-slash");
+              } else {
+                inp.type = "password";
+                icon.classList.remove("fa-eye-slash");
+                icon.classList.add("fa-eye");
+              }
             });
-        }, 60);
-    }
+          });
 
-    /* ---------- ATTACH HANDLERS ---------- */
-    function attachHandlers() {
-        document.querySelectorAll('a[data-confirm]').forEach(function (link) {
-            if (link.dataset.popupBound === '1') return;
-            link.dataset.popupBound = '1';
-            link.addEventListener('click', function (e) {
-                e.preventDefault(); e.stopPropagation();
-                pendingElement = this; pendingType = 'link';
-                openModal({
-                    title: this.dataset.confirmTitle || 'Are you sure?',
-                    message: this.dataset.confirm || '',
-                    confirmText: this.dataset.confirmBtn || 'Confirm',
-                    cancelText: this.dataset.cancelBtn || 'Cancel',
-                    danger: this.dataset.danger === 'true',
-                    type: this.dataset.type || (this.dataset.danger === 'true' ? 'danger' : 'warning'),
-                    icon: this.dataset.icon || null
-                });
-                return false;
-            });
+          const c2 = newCancel.cloneNode(true);
+          newCancel.replaceWith(c2);
+          c2.addEventListener("click", function () {
+            overlay.classList.remove("active");
+            const trigger = document.querySelector(
+              '[data-popup-form="profiles"]',
+            );
+            if (trigger) trigger.click();
+          });
         });
+      });
+    }, 60);
+  }
 
-        document.querySelectorAll('form[data-confirm]').forEach(function (form) {
-            if (form.dataset.popupBound === '1') return;
-            form.dataset.popupBound = '1';
-            form.addEventListener('submit', function (e) {
-                if (form.dataset.confirmed === '1') { form.dataset.confirmed = '0'; return; }
-                e.preventDefault(); e.stopPropagation();
-                pendingElement = this; pendingType = 'form';
-                openModal({
-                    title: this.dataset.confirmTitle || 'Are you sure?',
-                    message: this.dataset.confirm || '',
-                    confirmText: this.dataset.confirmBtn || 'Confirm',
-                    cancelText: this.dataset.cancelBtn || 'Cancel',
-                    danger: this.dataset.danger === 'true',
-                    type: this.dataset.type || (this.dataset.danger === 'true' ? 'danger' : 'warning'),
-                    icon: this.dataset.icon || null
-                });
-                return false;
-            });
+  /* ---------- ATTACH HANDLERS ---------- */
+  function attachHandlers() {
+    document.querySelectorAll("a[data-confirm]").forEach(function (link) {
+      if (link.dataset.popupBound === "1") return;
+      link.dataset.popupBound = "1";
+      link.addEventListener("click", function (e) {
+        e.preventDefault();
+        e.stopPropagation();
+        pendingElement = this;
+        pendingType = "link";
+        openModal({
+          title: this.dataset.confirmTitle || "Are you sure?",
+          message: this.dataset.confirm || "",
+          confirmText: this.dataset.confirmBtn || "Confirm",
+          cancelText: this.dataset.cancelBtn || "Cancel",
+          danger: this.dataset.danger === "true",
+          type:
+            this.dataset.type ||
+            (this.dataset.danger === "true" ? "danger" : "warning"),
+          icon: this.dataset.icon || null,
         });
+        return false;
+      });
+    });
 
-        document.querySelectorAll('[data-popup-form]').forEach(function (el) {
-            if (el.dataset.formBound === '1') return;
-            el.dataset.formBound = '1';
-            el.addEventListener('click', function (e) {
-                e.preventDefault(); e.stopPropagation();
-                const type = this.dataset.popupForm;
+    document.querySelectorAll("form[data-confirm]").forEach(function (form) {
+      if (form.dataset.popupBound === "1") return;
+      form.dataset.popupBound = "1";
+      form.addEventListener("submit", function (e) {
+        if (form.dataset.confirmed === "1") {
+          form.dataset.confirmed = "0";
+          return;
+        }
+        e.preventDefault();
+        e.stopPropagation();
+        pendingElement = this;
+        pendingType = "form";
+        openModal({
+          title: this.dataset.confirmTitle || "Are you sure?",
+          message: this.dataset.confirm || "",
+          confirmText: this.dataset.confirmBtn || "Confirm",
+          cancelText: this.dataset.cancelBtn || "Cancel",
+          danger: this.dataset.danger === "true",
+          type:
+            this.dataset.type ||
+            (this.dataset.danger === "true" ? "danger" : "warning"),
+          icon: this.dataset.icon || null,
+        });
+        return false;
+      });
+    });
 
-                if (type === 'product') {
-                    openFormPopup({
-                        title: 'Add Product', subtitle: 'Naya product inventory mein add karein',
-                        icon: '<i class="fa-solid fa-box"></i>', iconType: 'info',
-                        action: 'products.php', submitText: 'Save Product',
-                        body: `
+    document.querySelectorAll("[data-popup-form]").forEach(function (el) {
+      if (el.dataset.formBound === "1") return;
+      el.dataset.formBound = "1";
+      el.addEventListener("click", function (e) {
+        e.preventDefault();
+        e.stopPropagation();
+        const type = this.dataset.popupForm;
+
+        if (type === "product") {
+          openFormPopup({
+            title: "Add Product",
+            subtitle: "Naya product inventory mein add karein",
+            icon: '<i class="fa-solid fa-box"></i>',
+            iconType: "info",
+            action: "products.php",
+            submitText: "Save Product",
+            body: `
                             <label class="form-label">Product Name</label>
                             <div class="input-group"><i class="fa-solid fa-box input-icon"></i>
                                 <input type="text" name="name" placeholder="e.g. Sugar 1kg" required>
@@ -694,104 +1080,142 @@
                             <label class="form-label">Price per Item (Rs)</label>
                             <div class="input-group"><i class="fa-solid fa-tag input-icon"></i>
                                 <input type="number" name="price" placeholder="e.g. 120.00" min="0" step="0.01" required>
-                            </div>`
-                    });
-                } else if (type === 'sale') {
-                    const products = JSON.parse(this.dataset.products || '[]');
-                    openFormPopup({
-                        title: 'Record New Sale', subtitle: 'Sale hone par quantity update karein',
-                        icon: '<i class="fa-solid fa-cart-plus"></i>', iconType: 'success',
-                        action: this.dataset.action || 'sales.php', submitText: 'Save Sale',
-                        body: buildSaleForm(products)
-                    });
-                    attachSaleFormLogic();
-                } else if (type === 'product-edit') {
-                    const p = JSON.parse(this.dataset.product || '{}');
-                    openFormPopup({
-                        title: 'Edit Product', subtitle: 'Product details update karein',
-                        icon: '<i class="fa-solid fa-pen"></i>', iconType: 'warning',
-                        action: 'products.php', submitText: 'Update Product',
-                        body: buildProductEditForm(p)
-                    });
-                } else if (type === 'profiles') {
-                    const me = JSON.parse(this.dataset.user || '{}');
-                    const members = JSON.parse(this.dataset.members || '[]');
-                    openFormPopup({
-                        title: 'My Profile',
-                        subtitle: me.switched ? 'Switched view' : (me.role === 'admin' ? 'Profile & team management' : 'Your account details'),
-                        icon: '<i class="fa-solid fa-user"></i>', iconType: 'info',
-                        action: 'profile-update.php', submitText: 'Save Changes',
-                        body: buildProfilesForm(me, members)
-                    });
-                    attachProfilesLogic(me, members);
-                }
-            });
-        });
-    }
-
-    /* ---------- ALERTS ---------- */
-    function initAutoDismissAlerts() {
-        const alerts = document.querySelectorAll('.alert');
-        if (!alerts.length) return;
-        alerts.forEach(function (alert) {
-            if (alert.dataset.autoDismiss === '1') return;
-            alert.dataset.autoDismiss = '1';
-            if (!alert.querySelector('.alert-close')) {
-                const btn = document.createElement('button');
-                btn.type = 'button'; btn.className = 'alert-close';
-                btn.innerHTML = '<i class="fa-solid fa-xmark"></i>';
-                btn.addEventListener('click', function () { dismissAlert(alert); });
-                alert.appendChild(btn);
-            }
-            if (!alert.querySelector('.alert-progress')) {
-                const bar = document.createElement('div');
-                bar.className = 'alert-progress';
-                bar.innerHTML = '<div class="alert-progress-fill"></div>';
-                alert.appendChild(bar);
-            }
-            setTimeout(function () { dismissAlert(alert); }, 3000);
-        });
-    }
-
-    function dismissAlert(alert) {
-        if (alert.classList.contains('alert-hide')) return;
-        alert.classList.add('alert-hide');
-        setTimeout(function () { alert.remove(); }, 300);
-    }
-
-    function initFormTransitions() {
-        document.querySelectorAll('form').forEach(function (form) {
-            if (form.hasAttribute('data-confirm')) return;
-            form.addEventListener('submit', function () {
-                if (form.dataset.noFade === '1') return;
-                setTimeout(function () {
-                    const m = getMainContent();
-                    if (m) { m.classList.remove('mc-active'); m.classList.add('mc-exit'); }
-                }, 10);
-            });
-        });
-    }
-
-    function init() {
-        initPageTransitions();
-        injectModal();
-        injectFormModal();
-        attachHandlers();
-        initAutoDismissAlerts();
-        initFormTransitions();
-    }
-
-    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
-    else init();
-
-    window.addEventListener('pageshow', function (e) {
-        if (e.persisted) {
-            const m = getMainContent();
-            if (m) { m.classList.remove('mc-enter', 'mc-exit'); m.classList.add('mc-active'); }
+                            </div>`,
+          });
+        } else if (type === "sale") {
+          const products = JSON.parse(this.dataset.products || "[]");
+          openFormPopup({
+            title: "Record New Sale",
+            subtitle: "Sale hone par quantity update karein",
+            icon: '<i class="fa-solid fa-cart-plus"></i>',
+            iconType: "success",
+            action: this.dataset.action || "sales.php",
+            submitText: "Save Sale",
+            body: buildSaleForm(products),
+          });
+          attachSaleFormLogic();
+        } else if (type === "product-edit") {
+          const p = JSON.parse(this.dataset.product || "{}");
+          openFormPopup({
+            title: "Edit Product",
+            subtitle: "Product details update karein",
+            icon: '<i class="fa-solid fa-pen"></i>',
+            iconType: "warning",
+            action: "products.php",
+            submitText: "Update Product",
+            body: buildProductEditForm(p),
+          });
+        } else if (type === "product-detail") {
+          const p = JSON.parse(this.dataset.product || "{}");
+          openFormPopup({
+            title: "Product Details",
+            subtitle: "Full product information",
+            icon: '<i class="fa-solid fa-box"></i>',
+            iconType: "info",
+            action: "",
+            submitText: "",
+            body: buildProductDetail(p),
+          });
+          attachProductDetailLogic(p);
+        } else if (type === "profiles") {
+          const me = JSON.parse(this.dataset.user || "{}");
+          const members = JSON.parse(this.dataset.members || "[]");
+          openFormPopup({
+            title: "My Profile",
+            subtitle: me.switched
+              ? "Switched view"
+              : me.role === "admin"
+                ? "Profile & team management"
+                : "Your account details",
+            icon: '<i class="fa-solid fa-user"></i>',
+            iconType: "info",
+            action: "profile-update.php",
+            submitText: "Save Changes",
+            body: buildProfilesForm(me, members),
+          });
+          attachProfilesLogic(me, members);
         }
+      });
     });
+  }
 
-    window.initPopups = attachHandlers;
-    window.initAlerts = initAutoDismissAlerts;
-    window.openFormPopup = openFormPopup;
+  /* ---------- ALERTS ---------- */
+  function initAutoDismissAlerts() {
+    const alerts = document.querySelectorAll(".alert");
+    if (!alerts.length) return;
+    alerts.forEach(function (alert) {
+      if (alert.dataset.autoDismiss === "1") return;
+      alert.dataset.autoDismiss = "1";
+      if (!alert.querySelector(".alert-close")) {
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.className = "alert-close";
+        btn.innerHTML = '<i class="fa-solid fa-xmark"></i>';
+        btn.addEventListener("click", function () {
+          dismissAlert(alert);
+        });
+        alert.appendChild(btn);
+      }
+      if (!alert.querySelector(".alert-progress")) {
+        const bar = document.createElement("div");
+        bar.className = "alert-progress";
+        bar.innerHTML = '<div class="alert-progress-fill"></div>';
+        alert.appendChild(bar);
+      }
+      setTimeout(function () {
+        dismissAlert(alert);
+      }, 3000);
+    });
+  }
+
+  function dismissAlert(alert) {
+    if (alert.classList.contains("alert-hide")) return;
+    alert.classList.add("alert-hide");
+    setTimeout(function () {
+      alert.remove();
+    }, 300);
+  }
+
+  function initFormTransitions() {
+    document.querySelectorAll("form").forEach(function (form) {
+      if (form.hasAttribute("data-confirm")) return;
+      form.addEventListener("submit", function () {
+        if (form.dataset.noFade === "1") return;
+        setTimeout(function () {
+          const m = getMainContent();
+          if (m) {
+            m.classList.remove("mc-active");
+            m.classList.add("mc-exit");
+          }
+        }, 10);
+      });
+    });
+  }
+
+  function init() {
+    initPageTransitions();
+    injectModal();
+    injectFormModal();
+    attachHandlers();
+    initAutoDismissAlerts();
+    initFormTransitions();
+  }
+
+  if (document.readyState === "loading")
+    document.addEventListener("DOMContentLoaded", init);
+  else init();
+
+  window.addEventListener("pageshow", function (e) {
+    if (e.persisted) {
+      const m = getMainContent();
+      if (m) {
+        m.classList.remove("mc-enter", "mc-exit");
+        m.classList.add("mc-active");
+      }
+    }
+  });
+
+  window.initPopups = attachHandlers;
+  window.initAlerts = initAutoDismissAlerts;
+  window.openFormPopup = openFormPopup;
 })();

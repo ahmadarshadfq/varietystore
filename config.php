@@ -64,29 +64,35 @@ function requireAdmin() {
 }
 
 /* ---------- COLOR HELPERS ---------- */
-// Valid hex color: #RRGGBB
 function isValidHexColor($c) {
     return is_string($c) && preg_match('/^#[0-9A-Fa-f]{6}$/', $c) === 1;
 }
 
-// Pastel/light tint for row backgrounds
 function lightenColor($hex, $mix = 0.85) {
     if (!isValidHexColor($hex)) $hex = '#4f46e5';
     $hex = ltrim($hex, '#');
     $r = hexdec(substr($hex, 0, 2));
     $g = hexdec(substr($hex, 2, 2));
     $b = hexdec(substr($hex, 4, 2));
-
-    // Mix with white
     $r = (int) round($r * (1 - $mix) + 255 * $mix);
     $g = (int) round($g * (1 - $mix) + 255 * $mix);
     $b = (int) round($b * (1 - $mix) + 255 * $mix);
-
     return sprintf('#%02x%02x%02x', $r, $g, $b);
 }
 
-// Ensure font color is readable on the row background (dark text on light bg)
-function rowTextColor($hex) {
-    return '#1e293b'; // always dark since we use lightened bg
+/* ---------- WHOLESALE / PROFIT HELPERS ---------- */
+// Selling price = cost + profit
+function calcSellingPrice($costPrice, $profitType, $profitValue) {
+    $cost = (float)$costPrice;
+    if ($profitType === 'percent') {
+        return round($cost * (1 + ((float)$profitValue / 100)), 2);
+    }
+    // flat amount
+    return round($cost + (float)$profitValue, 2);
+}
+
+// Profit amount for one item
+function calcProfit($costPrice, $sellingPrice) {
+    return max(0, (float)$sellingPrice - (float)$costPrice);
 }
 ?>
