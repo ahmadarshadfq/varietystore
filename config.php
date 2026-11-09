@@ -34,39 +34,20 @@ function isAdmin() {
     $u = currentUser();
     return $u && $u['role'] === 'admin';
 }
-
-function isLoggedIn() {
-    return isset($_SESSION['user_id']);
-}
-
-function isSwitched() {
-    return !empty($_SESSION['switched_from_admin']);
-}
-
-function realAdmin() {
-    if (!isSwitched()) return null;
-    return $_SESSION['switched_from_admin'];
-}
+function isLoggedIn() { return isset($_SESSION['user_id']); }
+function isSwitched() { return !empty($_SESSION['switched_from_admin']); }
+function realAdmin() { return isSwitched() ? $_SESSION['switched_from_admin'] : null; }
 
 function requireLogin() {
-    if (!isLoggedIn()) {
-        header("Location: login.php");
-        exit;
-    }
+    if (!isLoggedIn()) { header("Location: login.php"); exit; }
 }
-
 function requireAdmin() {
     requireLogin();
-    if (!isAdmin()) {
-        header("Location: admin.php?error=no_permission");
-        exit;
-    }
+    if (!isAdmin()) { header("Location: admin.php?error=no_permission"); exit; }
 }
 
-/* ---------- COLOR HELPERS ---------- */
-function isValidHexColor($c) {
-    return is_string($c) && preg_match('/^#[0-9A-Fa-f]{6}$/', $c) === 1;
-}
+/* ---------- COLOR ---------- */
+function isValidHexColor($c) { return is_string($c) && preg_match('/^#[0-9A-Fa-f]{6}$/', $c) === 1; }
 
 function lightenColor($hex, $mix = 0.85) {
     if (!isValidHexColor($hex)) $hex = '#4f46e5';
@@ -80,18 +61,12 @@ function lightenColor($hex, $mix = 0.85) {
     return sprintf('#%02x%02x%02x', $r, $g, $b);
 }
 
-/* ---------- WHOLESALE / PROFIT HELPERS ---------- */
-// Selling price = cost + profit
+/* ---------- WHOLESALE ---------- */
 function calcSellingPrice($costPrice, $profitType, $profitValue) {
     $cost = (float)$costPrice;
-    if ($profitType === 'percent') {
-        return round($cost * (1 + ((float)$profitValue / 100)), 2);
-    }
-    // flat amount
+    if ($profitType === 'percent') return round($cost * (1 + ((float)$profitValue / 100)), 2);
     return round($cost + (float)$profitValue, 2);
 }
-
-// Profit amount for one item
 function calcProfit($costPrice, $sellingPrice) {
     return max(0, (float)$sellingPrice - (float)$costPrice);
 }

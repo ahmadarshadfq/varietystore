@@ -25,7 +25,21 @@ $userData = json_encode([
     'admin_username' => $adminInfo['username'] ?? null,
 ], JSON_HEX_APOS | JSON_HEX_QUOT);
 ?>
-<aside class="sidebar">
+
+<!-- Mobile hamburger (only visible on mobile) -->
+<button type="button" class="mobile-menu-btn" id="mobileMenuBtn" aria-label="Open menu">
+    <i class="fa-solid fa-bars"></i>
+</button>
+
+<!-- Overlay (mobile only, when menu open) -->
+<div class="mobile-menu-overlay" id="mobileMenuOverlay"></div>
+
+<aside class="sidebar" id="appSidebar">
+
+    <!-- Mobile close button (only visible on mobile) -->
+    <button type="button" class="mobile-menu-close" id="mobileMenuClose" aria-label="Close menu">
+        <i class="fa-solid fa-xmark"></i>
+    </button>
 
     <?php if ($switched): ?>
     <a href="member-switch-back.php" class="switch-back-banner"

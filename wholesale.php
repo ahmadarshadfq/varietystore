@@ -179,7 +179,7 @@ $activePage = 'wholesale';
         </div>
 
         <!-- ============ PRODUCTS LIST WITH PROFIT ============ -->
-        <div class="glass panel" style="padding:0;overflow:hidden;">
+        <div class="glass panel" style="padding:0; overflow:hidden;">
             <div style="padding:20px;">
                 <h2 style="font-size:15px;font-weight:600;display:flex;align-items:center;gap:8px;margin-bottom:14px;">
                     <i class="fa-solid fa-list" style="color:var(--primary);"></i> All Products & Profit
@@ -189,50 +189,52 @@ $activePage = 'wholesale';
             <?php if (empty($products)): ?>
                 <p class="empty" style="padding:32px 20px;">Koi product nahi hai. Upar se pehla wholesale product add karein.</p>
             <?php else: ?>
-            <table class="table">
-                <thead>
-                    <tr>
-                        <th>#</th>
-                        <th>Product</th>
-                        <th class="text-right">Qty</th>
-                        <th class="text-right">Purchase</th>
-                        <th class="text-right">Selling</th>
-                        <th class="text-right">Profit/Item</th>
-                        <th class="text-right">Profit %</th>
-                        <th class="text-right">Total Profit Potential</th>
-                        <th class="text-center">Actions</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <?php foreach ($products as $i => $p):
-                        $profit = (float)$p['profit_per_item'];
-                        $pct    = (float)$p['profit_pct'];
-                        $totalProfit = $profit * (int)$p['quantity'];
-                    ?>
-                    <tr>
-                        <td class="muted"><?= $i + 1 ?></td>
-                        <td><strong><?= htmlspecialchars($p['name']) ?></strong></td>
-                        <td class="text-right"><?= (int)$p['quantity'] ?></td>
-                        <td class="text-right">Rs <?= number_format($p['cost_price'], 2) ?></td>
-                        <td class="text-right">Rs <?= number_format($p['price'], 2) ?></td>
-                        <td class="text-right" style="color:var(--success);font-weight:600;">
-                            Rs <?= number_format($profit, 2) ?>
-                        </td>
-                        <td class="text-right" style="color:var(--success);font-weight:600;">
-                            <?= number_format($pct, 1) ?>%
-                        </td>
-                        <td class="text-right"><strong>Rs <?= number_format($totalProfit, 2) ?></strong></td>
-                        <td class="text-center">
-                            <div class="action-group">
-                                <a href="wholesale.php?edit=<?= $p['id'] ?>" class="btn-icon" title="Edit wholesale">
-                                    <i class="fa-solid fa-pen"></i>
-                                </a>
-                            </div>
-                        </td>
-                    </tr>
-                    <?php endforeach; ?>
-                </tbody>
-            </table>
+            <div class="wholesale-table-wrap">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Product</th>
+                            <th class="text-right">Qty</th>
+                            <th class="text-right">Purchase</th>
+                            <th class="text-right">Selling</th>
+                            <th class="text-right">Profit/Item</th>
+                            <th class="text-right">Profit %</th>
+                            <th class="text-right">Total Profit Potential</th>
+                            <th class="text-center">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php foreach ($products as $i => $p):
+                            $profit = (float)$p['profit_per_item'];
+                            $pct    = (float)$p['profit_pct'];
+                            $totalProfit = $profit * (int)$p['quantity'];
+                        ?>
+                        <tr>
+                            <td class="muted"><?= $i + 1 ?></td>
+                            <td><strong><?= htmlspecialchars($p['name']) ?></strong></td>
+                            <td class="text-right"><?= (int)$p['quantity'] ?></td>
+                            <td class="text-right">Rs <?= number_format($p['cost_price'], 2) ?></td>
+                            <td class="text-right">Rs <?= number_format($p['price'], 2) ?></td>
+                            <td class="text-right" style="color:var(--success);font-weight:600;">
+                                Rs <?= number_format($profit, 2) ?>
+                            </td>
+                            <td class="text-right" style="color:var(--success);font-weight:600;">
+                                <?= number_format($pct, 1) ?>%
+                            </td>
+                            <td class="text-right"><strong>Rs <?= number_format($totalProfit, 2) ?></strong></td>
+                            <td class="text-center">
+                                <div class="action-group">
+                                    <a href="wholesale.php?edit=<?= $p['id'] ?>" class="btn-icon" title="Edit wholesale">
+                                        <i class="fa-solid fa-pen"></i>
+                                    </a>
+                                </div>
+                            </td>
+                        </tr>
+                        <?php endforeach; ?>
+                    </tbody>
+                </table>
+            </div>
             <?php endif; ?>
         </div>
     </main>
@@ -251,6 +253,8 @@ $activePage = 'wholesale';
     const wsSell = document.getElementById('wsSell');
     const wsStockVal = document.getElementById('wsStockVal');
     const wsTotProfit = document.getElementById('wsTotProfit');
+
+    if (!costEl) return;
 
     let manualSellOverride = false;
 
